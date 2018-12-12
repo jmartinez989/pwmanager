@@ -1,0 +1,18 @@
+JSON input for this program will generally be the same for most actions and will differe slightly depending on the action.
+Below is an example of what a JSON object being input would look like:
+{
+    "key": "abcd&^%$1-=aksjbhgffjghkjh45fer8u7i-" <- encrytion/decryption key
+    "action": 2, <- integer value to determin what will be done
+    "label": "onlinepasssword" <- Label of which password to act on.
+}
+
+In the above example the request is to get the password for the label "onlinepassword". The integer 2 signifies to the program to
+get a password. Below is a list of what each action is associated with which integer:
+    1: Add Password
+    2: Get Password
+    3: Get Full Password Details <- Returns JSON object of all information regarding the label in question.
+    4: List All Labels
+    5: Dump Decrypted Info To New File <- Use with care, will dump contents of password file but with the passwords in plain text.
+    6: Change Password
+
+The JSON schema for each one of the actions can be displayed by running the program with the -s option.

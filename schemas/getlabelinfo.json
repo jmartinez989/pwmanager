@@ -1,0 +1,16 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Get Information On A Label",
+    "properties": {
+        "action": {
+            "type": "integer",
+            "description": "Integer for action to take."
+        },
+        "label": {
+            "type": "string",
+            "description": "Label identifier of password to get."
+        }
+    },
+    "required": ["action", "label"]
+}

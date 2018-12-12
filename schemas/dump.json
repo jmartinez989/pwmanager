@@ -1,0 +1,20 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Dump Decrypted Passwords File with Passwords in Clear Text",
+    "properties": {
+        "key": {
+            "type": "string",
+            "description": "Key to use for encryption/decryption"
+        },
+        "action": {
+            "type": "integer",
+            "description": "Integer for action to take."
+        },
+        "fileDir": {
+            "type": "string",
+            "description": "Directory of where to dump the file. Filename will be passwords.json"
+        }
+    },
+    "required": ["key", "action", "fileDir"]
+}

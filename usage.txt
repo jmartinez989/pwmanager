@@ -1,0 +1,16 @@
+Usage: passwords.py [OPTIONS]. Running with no options will run program will run with a terminal menu.
+    OPTIONS:
+        -f [filename]: Read action to perform from a json file.
+
+        -j [json string]: Read action to perform from json passed in from the command line. Can be done as below:
+            passwords.py -j '
+            {
+                "action": 2,
+                "key": "-S8qiCMaohb8RGwJsAsn9pHcpeITqzJAjGS7uJcnUfw=",
+                "label": "bebalanced"
+            }'
+
+        -i: Display detailes as to what json data should look like for desired action.
+
+        -s [action]: Displays the JSON schema needed to perform the required action (integer value). Action values can be found
+                     using program with -i option..
