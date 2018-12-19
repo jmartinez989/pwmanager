@@ -7,11 +7,13 @@ import jsonschema
 import os
 import sys
 from termcolor import colored
+from getpass import getpass
 
 printSource = ""
 scriptDir = os.path.dirname(os.path.realpath(__file__))
 
 
+# @main()
 def main():
     actionsDict = {
         1: addPassword,
@@ -43,8 +45,10 @@ def main():
 #  \____\___/|_| |_|\__|_|  \___/|_| |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
 #
 ###################################################################################################
+
+# @terminal()
 def terminal(data, actionsDict):
-    data["key"] = raw_input("Please enter key for passwords: ")
+    data["key"] = getpass("Please enter key for passwords: ")
 
     menu = [
         "",
@@ -80,6 +84,7 @@ def terminal(data, actionsDict):
 # END terminal() DEF
 
 
+# @processJSONRequest()
 def processJSONRequest(data, actionsDict):
     source_data = data["source_data"]
 
@@ -87,8 +92,8 @@ def processJSONRequest(data, actionsDict):
 
     action = source_data["action"]
 
-    if isValidAction(action):
-        if "key" in data.keys():
+    if isValidAction(action, "json"):
+        if "key" in source_data.keys():
             data["key"] = bytes(data["source_data"].pop("key"))
         # END IF
 
@@ -102,6 +107,7 @@ def processJSONRequest(data, actionsDict):
 # END processJSONRequest() DEF
 
 
+# @exit()
 def exit(data):
     sys.exit(0)
 
@@ -119,6 +125,8 @@ def exit(data):
 # |___|_| |_|_|  \___/  |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
 #
 ###################################################################################################
+
+# @usage()
 def usage():
     global scriptDir
 
@@ -132,6 +140,7 @@ def usage():
 # END usage() DEF
 
 
+# @information
 def information():
     global scriptDir
 
@@ -186,8 +195,14 @@ def addPassword(data):
     key = data["key"]
     cipher_suite = Fernet(key)
 
-    pwUserName, pwVal, pwLabel, pwURL, pwDesc, pwDetails = gatherPasswordInfo(data, cipher_suite)
+    info = gatherPasswordInfo(data, cipher_suite)
+
+    if not info:
+        return
     # END IF
+
+    pwUserName, pwVal, pwLabel, pwURL, pwDesc, pwDetails = info
+    pwDetails = pwDetails.split(",")
 
     encryptDetails(pwDetails, cipher_suite)
 
@@ -252,32 +267,54 @@ def getPassword(data):
 # END getPassword() DEF
 
 
+# @changePassword()
 def changePassword(data):
+    global scriptDir
+
+    pwFile = scriptDir + "/passwords.json"
     passwords = data["passwords"]
+    source = data["source"]
+    newPw = ""
 
     if len(passwords.keys()) == 0:
         printMsg("\nThere are no passwords stored to change.", "red")
+        return
+    # END IF
+
+    if source == "json":
+        pwLabel = data["source_data"]["label"]
+        newPw = data["source_data"]["value"]
     else:
         pwLabel = raw_input("\nEnter the label for password to change: ")
+    # END IF
 
-        if pwLabel in passwords.keys():
-            try:
-                key = data["key"]
-                cipher_suite = Fernet(key)
-                newPw = raw_input("Etner new password: ")
-                passwords[pwLabel]["value"] = cipher_suite.encrypt(newPw)
-            except ValueError:
-                printMsg('\nWrong key for label "{}"'.format(pwLabel))
-            # END TRY
-        else:
-            printMsg('\nLabel "{}" does not exist.'.format(pwLabel))
+    if pwLabel in passwords.keys():
+        if newPw == "":
+            newPw = raw_input("Etner new password: ")
         # END IF
+
+        try:
+            key = data["key"]
+            cipher_suite = Fernet(key)
+            passwords[pwLabel]["value"] = cipher_suite.encrypt(bytes(newPw))
+
+            with open(pwFile, "w") as pwFileObj:
+                pwFileObj.write(json.dumps(passwords))
+            # END WITH
+
+            printMsg("\nUpdated password successfully", "green")
+        except ValueError:
+            printMsg('\nWrong key for label "{}"'.format(pwLabel), "red")
+        # END TRY
+    else:
+        printMsg('\nLabel "{}" does not exist.'.format(pwLabel), "red")
     # END IF
 
 
 # END changePassword() DEF
 
 
+# @printLabelDetails()
 def printLabelDetails(data):
     passwords = data["passwords"]
 
@@ -425,6 +462,7 @@ def determineSource(data):
 # END determineSource() DEF
 
 
+# @checkFiles()
 def checkFiles():
     global scriptDir
 
@@ -450,6 +488,7 @@ def checkFiles():
 # END checkFiles() DEF
 
 
+# @validateData()
 def validateData(source_data):
     """
     The "action" key has to be checked before any actual JSON schema validation because its value
@@ -467,7 +506,7 @@ def validateData(source_data):
         sys.exit(1)
     # END IF
 
-    if not isValidAction(action):
+    if not isValidAction(action, "json"):
         printMsg("Invalid value for key \"action\".", "red")
         sys.exit(1)
     # END IF
@@ -500,8 +539,14 @@ def validateData(source_data):
 # END validateKeys() DEF
 
 # @isValidAction()
-def isValidAction(action):
-    if action not in range(0, 8):
+def isValidAction(action, source="terminal"):
+    rangeStart = 0
+
+    if source == "json":
+        rangeStart = 1
+    # END IF
+
+    if action not in range(rangeStart, 8):
         return False
 
     return True
@@ -552,7 +597,7 @@ def isValidSchemaId(schema_id):
     try:
         action = int(action)
 
-        if isValidAction(action):
+        if isValidAction(action, "json"):
             return True
         # END IF
     except ValueError as e:
@@ -567,10 +612,10 @@ def isValidSchemaId(schema_id):
 
 #END isValidSchemaId() DEF
 
+
 # @encryptDetails()
 # Helper of function addPassword()
 def encryptDetails(details, cipher_suite):
-    printMsg(details)
     detIndex = 0
     splitWord = ""
     currentWord = ""
@@ -622,121 +667,108 @@ def decryptDetails(details, cipher_suite):
 # @gatherPasswordInfo()
 # Helper of function addPassword()
 def gatherPasswordInfo(data, cipher_suite):
-    passwords = data["passwords"]
+    pwUserName = ""
+    pwVal = ""
+    pwLabel = ""
+    pwURL = ""
+    pwDesc = ""
+    pwDetails = ""
+    pwInfo = ()
 
     if data["source"] == "json":
-        info = data["source_data"]["passwordInfo"]
-
-        if "mirrorLabel" in info.keys():
-            if info["mirrorLabel"] in passwords.keys():
-                pwUserName = passwords[lableToMirror]["username"]
-                pwVal = cipher_suite.decrypt(bytes(passwords[lableToMirror]["value"]))
-            else:
-                printMsg("\nLabel \"{}\" not found.".format(lableToMirror))
-                return
-            # END IF
-        else:
-            pwUserName = info["pwUserName"]
-            pwVal = info["pwVal"]
-        # END IF
-
-        pwLabel = info["pwLabel"]
-        pwURL = info["pwURL"]
-        pwDesc = info["pwDesc"]
-        pwDetails = info["pwDetails"]
+        pwInfo = getDataFromJSON(data, cipher_suite)
     else:
-        mirrorOtherLabel = raw_input("\nMirror username and password of other label? (yes/no): ")
-
-        if mirrorOtherLabel == "yes":
-            lableToMirror = raw_input("What label do you want to mirror?: ")
-
-            if lableToMirror in passwords:
-                pwUserName = passwords[lableToMirror]["username"]
-                pwVal = cipher_suite.decrypt(bytes(passwords[lableToMirror]["value"]))
-            else:
-                printMsg("\nLabel \"{}\" not found.".format(lableToMirror))
-                return
-        elif mirrorOtherLabel == "no":
-            pwUserName = raw_input("Enter user name to be associated with this password: ")
-            pwVal = raw_input("Enter password to be stored: ")
-        else:
-            printMsg("\nInvalid response \"{}\".".format(mirrorOtherLabel))
-            return
-        # END IF
-
-        pwLabel = raw_input("Enter label for password: ").lower()
-        pwURL = raw_input(
-            "Enter URL for password (if there is one, can leave blank for default value of N/A): "
-        )
-        pwDesc = raw_input("Enter a brief description of the password (optional): ")
-        pwDetails = raw_input(
-            "*Optional* Enter details(i.e. security questions). Separate values via commas: "
-        )
+        pwInfo = getDataFromCLI(data, cipher_suite)
     # END IF
 
-    pwDetails = pwDetails.split(",")
+    return pwInfo
 
-    return (pwUserName, pwVal, pwLabel, pwURL, pwDesc, pwDetails)
+
 # END gatherPasswordInfo() DEF
 
 
+# @getDataFromJSON()
+# Helper of function gatherPasswordInfo()
+def getDataFromJSON(data, cipher_suite):
+    passwords = data["passwords"]
+
+    info = data["source_data"]["passwordInfo"]
+
+    if "mirrorLabel" in info.keys():
+        if info["mirrorLabel"] in passwords.keys():
+            pwUserName = passwords[lableToMirror]["username"]
+            pwVal = cipher_suite.decrypt(bytes(passwords[lableToMirror]["value"]))
+        else:
+            printMsg("\nLabel \"{}\" not found.".format(lableToMirror))
+            return
+        # END IF
+    else:
+        pwUserName = info["pwUserName"]
+        pwVal = info["pwVal"]
+    # END IF
+
+    pwLabel = info["pwLabel"]
+    pwURL = info["pwURL"]
+    pwDesc = info["pwDesc"]
+    pwDetails = info["pwDetails"]
+
+    return (pwUserName, pwVal, pwLabel, pwURL, pwDesc, pwDetails)
+
+
+# END getDataFromJSON() DEF
+
+
+# @getDataFromCLI()
+# Helper of function gatherPasswordInfo()
+def getDataFromCLI(data, cipher_suite):
+    mirrorOtherLabel = raw_input("\nMirror username and password of other label? (yes/no): ")
+
+    if mirrorOtherLabel == "yes":
+        lableToMirror = raw_input("What label do you want to mirror?: ")
+
+        if lableToMirror in passwords:
+            pwUserName = passwords[lableToMirror]["username"]
+            pwVal = cipher_suite.decrypt(bytes(passwords[lableToMirror]["value"]))
+        else:
+            printMsg("\nLabel \"{}\" not found.".format(lableToMirror))
+            return
+    elif mirrorOtherLabel == "no":
+        pwUserName = raw_input("Enter user name to be associated with this password: ")
+        pwVal = raw_input("Enter password to be stored: ")
+    else:
+        printMsg("\nInvalid response \"{}\".".format(mirrorOtherLabel), "red")
+        return
+    # END IF
+
+    pwLabel = raw_input("Enter label for password: ").lower()
+    pwURL = raw_input(
+        "Enter URL for password (if there is one, can leave blank for default value of N/A): "
+    )
+    pwDesc = raw_input("Enter a brief description of the password (optional): ")
+    pwDetails = raw_input(
+        "*Optional* Enter details(i.e. security questions). Separate values via commas: "
+    )
+
+    return (pwUserName, pwVal, pwLabel, pwURL, pwDesc, pwDetails)
+
+
+# END getDataFromCLI() DEF
+
+
+# @processSchemaError()
 # Helper of function validateData()
 def processSchemaError(error, source_data):
-    dataTypes = {
-        type(""): "string",
-        type(1): "integer",
-        type(True): "boolean",
-        type(1.23): "number",
-        type([]): "list",
-        type({}): "object"
-    }
-
     errInfo = error._contents()
     errValidator = errInfo["validator"]
     errPath = errInfo["path"]
     errPath.appendleft("root")
     errMsg = errInfo["message"]
-    issueKey = ""
     message = ""
-    currObj = source_data
-    expectedType =""
 
     if errValidator == "required":
-        issueKey = errMsg.split(" ")[0].replace("u'", "").replace("'", "")
-        errPath.append(issueKey)
-        message = "\nRequired key \"{}\" missing from incoming JSON data".format(issueKey)
-        message = message + "\nJSON Path of key: {}".format(".".join(errPath))
-        message = message + "\nIncoming JSON: \n"
-
-        for prop in list(errPath)[1:]:
-            if prop in currObj.keys():
-                currObj = currObj[prop]
-            # END IF
-        # END
-
-        currObj[issueKey] = "This key is missing <---"
+        message = getRequiredKeyMissingErrMessage(errMsg, errPath, source_data)
     elif errValidator == "type":
-        for prop in list(errPath)[1:-1]:
-            if prop in currObj.keys():
-                currObj = currObj[prop]
-            # END IF
-        # END
-
-        issueKey = list(errPath)[-1]
-        expectedType = errInfo["validator_value"].replace("u'", "").replace("'", "")
-        message = "\nKey \"{}\" is wrong type in incoming JSON data".format(issueKey)
-        message = message + "\nExpected type({}), got type({})".format(
-            expectedType, dataTypes[type(currObj[issueKey])]
-        )
-        message = message + "\nJSON Path of key: {}".format(".".join(errPath))
-        message = message + "\nIncoming JSON: \n"
-
-        issueLine = "{} (wrong type got [{}], expected [{}]) <---"
-        issueLine = issueLine.format(
-            currObj[issueKey],  dataTypes[type(currObj[issueKey])], expectedType
-        )
-
-        currObj[issueKey] = issueLine
+        message = getWrongTypeErrMessage(errInfo, errPath, source_data)
     else:
         printMsg(error)
         sys.exit(1)
@@ -752,6 +784,64 @@ def processSchemaError(error, source_data):
 # END processSchemaError() DEF
 
 
+# @getRequiredKeyMissingErrMessage()
+# Helper of function processSchemaError()
+def getRequiredKeyMissingErrMessage(errMsg, errPath, currObj):
+    issueKey = errMsg.split(" ")[0].replace("u'", "").replace("'", "")
+    errPath.append(issueKey)
+    message = "\nRequired key \"{}\" missing from incoming JSON data".format(issueKey)
+    message = message + "\nJSON Path of key: {}".format(".".join(errPath))
+    message = message + "\nIncoming JSON: \n"
+
+    for prop in list(errPath)[1:]:
+        if prop in currObj.keys():
+            currObj = currObj[prop]
+        # END IF
+    # END
+
+    currObj[issueKey] = "This key is missing <---"
+
+    return message
+
+# END getRequiredKeyMissingErrMessage() DEF
+
+
+# @getgetWrongTypeErrMessage()
+# Helper of function processSchemaError()
+def getWrongTypeErrMessage(errInfo, errPath, currObj):
+    dataTypes = {
+        type(""): "string",
+        type(1): "integer",
+        type(True): "boolean",
+        type(1.23): "number",
+        type([]): "list",
+        type({}): "object"
+    }
+
+    for prop in list(errPath)[1:-1]:
+        if prop in currObj.keys():
+            currObj = currObj[prop]
+        # END IF
+    # END
+
+    issueKey = list(errPath)[-1]
+    expectedType = errInfo["validator_value"].replace("u'", "").replace("'", "")
+    recievedType = dataTypes[type(currObj[issueKey])]
+    message = "\nKey \"{}\" is wrong type in incoming JSON data".format(issueKey)
+    message = message + "\nExpected type({}), got type({})".format(expectedType, recievedType)
+    message = message + "\nJSON Path of key: {}".format(".".join(errPath))
+    message = message + "\nIncoming JSON: \n"
+
+    issueLine = "{} (wrong type got [{}], expected [{}]) <---"
+    issueLine = issueLine.format(currObj[issueKey],  recievedType, expectedType)
+
+    currObj[issueKey] = issueLine
+
+    return message
+
+
+# END getWrongTypeErrMessage() DEF
+
 
 # --------------------
 # Utility Functions  |
@@ -764,7 +854,7 @@ def processSchemaError(error, source_data):
 #                      |___/
 ###################################################################################################
 
-# @printMessage()
+# @printMsg()
 def printMsg(msgStr, colorStr="None"):
     global printSource
 
