@@ -1,9 +1,9 @@
-Usage: passwords.py [OPTIONS]. Running with no options will run program will run with a terminal menu.
+Usage: pwmanager.py [OPTIONS]. Running with no options will run program will run with a terminal menu.
     OPTIONS:
         -f [filename]: Read action to perform from a json file.
 
         -j [json string]: Read action to perform from json passed in from the command line. Can be done as below:
-            passwords.py -j '
+            pwmanager.py -j '
             {
                 "action": 2,
                 "key": "-S8qiCMaohb8RGwJsAsn9pHcpeITqzJAjGS7uJcnUfw=",

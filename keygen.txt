@@ -1,0 +1,6 @@
+Here is a key: {} 
+
+Remember it is your responsibility. If you lose it you will have to re add all of the passwords
+that you entered before. You can always get a back up of unencrypted password information and
+then later use that file to build a new encrypted file. Be careful when using the backup option
+and make sure that the data is being sent over a secure channel and that no one can see.

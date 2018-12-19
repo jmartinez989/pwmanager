@@ -13,7 +13,7 @@
         },
         "fileDir": {
             "type": "string",
-            "description": "Directory of where to dump the file. Filename will be passwords.json"
+            "description": "Directory of where to dump the file. Filename will be pwdump.json. This value can also be 'stdout' to display to the screen but be careful using that."
         }
     },
     "required": ["key", "action", "fileDir"]
