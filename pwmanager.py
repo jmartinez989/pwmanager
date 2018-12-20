@@ -12,9 +12,19 @@ from getpass import getpass
 printSource = ""
 scriptDir = os.path.dirname(os.path.realpath(__file__))
 
-
+###################################################################################################
 # @main()
+# function main()
+#
+# Paramaters: None
+#
+# Returns: None
+#
+#     The main driver function.
 def main():
+    """
+    Dictionary of functions to call. All of these functions are in the "Action Functions" section.
+    """
     actionsDict = {
         1: addPassword,
         2: getPassword,
@@ -33,6 +43,7 @@ def main():
 
 
 # END main() DEF
+###################################################################################################
 
 
 # --------------------
@@ -45,8 +56,81 @@ def main():
 #  \____\___/|_| |_|\__|_|  \___/|_| |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
 #
 ###################################################################################################
+#     The functions in this section are functions that control the flow of the program. The control
+# functions will have a paramater called "data" that will be a dictionary that will hold many
+# properties regarding the passwords stored. The dictionary will look like below:
+#
+# {
+#     "data": {
+#         "fileName": "",
+#         "passwords": {
+#             "passwordLabel1": {
+#                 "description": "",
+#                 "details":[],
+#                 "url": "",
+#                 "username": "",
+#                 "value": ""
+#             },
+#             "passwordLabelN": {
+#                 "description": "",
+#                 "details":[],
+#                 "url": "",
+#                 "username": "",
+#                 "value": ""
+#             }
+#         },
+#         "key": "",
+#         "source": "",
+#         "source_data": {}
+#     }
+# }
+#
+# Below are descriptions of all of the properties of the data dictionary:
+#     fileName: The fully qualified file name of the passwords file will be stored.
+#     passwords: The dictionary storing all of the information that was stored in the password
+#                file.
+#     source: The source of where the input to the program will be coming from. This can either
+#             be "terminal" or "json".
+#     source_data: The actual data that is coming in from the source specified. This will only
+#                  be populated when the "source" property is set to "json". The format for
+#                  this will depend on what action is being requested by the JSON object passed
+#                  in as input. The schema files will show what this should look like.
+#     key: The key that will be used to encrypt/decrypt passwords. Certain action functions won't
+#          actually need this key as these actions will not be handling actual passwords in any
+#          way.
+#
+#
+# Below are descriptions of all of the properties of the passwords dictionary:
+#     passwordLabel1...passwordLabelN: The object that stores the password information. The key
+#                                      is the label or name of the password object.
+#
+# Below are descriptions of the properties for a password object:
+#     description: A brief description of where the password will be used. (optional)
+#     details: A list of different details related to the password. This can be things like answers
+#              to security or details on ip addresses to a device the password is associated with.
+#              A list item can have a part or all of it encrypted by proceeding the word with the
+#              prefix "enc:|:". (optional)
+#     url: The URL of the site this password would be used on if it is applicaple (optional)
+#     username: The username associated with the password.
+#     value: The value of the actual password that is stored.
+###################################################################################################
 
+
+###################################################################################################
 # @terminal()
+# function terminal()
+#
+# Parameters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+#     actionsDict: A dictionary that will hold function pointers to the proper function to be
+#                  called.
+#
+# Returns: None
+#
+#     This funtion will be used to direct the flow of control for when the source of input is the
+# terminal. A menu will printed out to the screen for the user to show what actions they can take.
 def terminal(data, actionsDict):
     data["key"] = getpass("Please enter key for passwords: ")
 
@@ -82,9 +166,24 @@ def terminal(data, actionsDict):
 
 
 # END terminal() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @processJSONRequest()
+# function processJSONRequest()
+#
+# Paramters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+#     actionsDict: A dictionary that will hold function pointers to the proper function to be
+#                  called.
+#
+# Returns: None
+#
+#     This funtion will be used to direct the flow of control for when the source of input is
+# coming from json.
 def processJSONRequest(data, actionsDict):
     source_data = data["source_data"]
 
@@ -105,14 +204,30 @@ def processJSONRequest(data, actionsDict):
 
 
 # END processJSONRequest() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @exit()
+# function exit()
+#
+# Parameters:
+#     data: Not actually used in this function. This function exists so that it can be stored in a
+#           dictionary and invoked from it.
+#
+# Returns: None
+#
+#     This function is created so that it can be invoked from a dictionary that it will be stored
+# in. The reason it will be stored in a dictionary is because there will be other functions in the
+# dictionary that will be invoked based on an integer value. The dictionary this will be used on
+# is essentially going to be treated as a switch statement where the integer chosen for an action
+# will be the case and function will be called for that ase.
 def exit(data):
     sys.exit(0)
 
 
 # END exit() DEF
+###################################################################################################
 
 
 # -----------------
@@ -125,8 +240,20 @@ def exit(data):
 # |___|_| |_|_|  \___/  |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
 #
 ###################################################################################################
+#     This section will have only functions that are used to inform the user of different aspects
+# of the program.
+###################################################################################################
 
+
+###################################################################################################
 # @usage()
+# function usage()
+#
+# Parameters: None
+#
+# Returns: None
+#
+#     A function to display the usage of the program.
 def usage():
     global scriptDir
 
@@ -138,9 +265,17 @@ def usage():
 
 
 # END usage() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @information
+# function information()
+# Parameters: None
+#
+# Returns: None
+#
+#     A function to display specifics on how the program works with JSON input.
 def information():
     global scriptDir
 
@@ -152,8 +287,21 @@ def information():
 
 
 # END information() DEF
+###################################################################################################
 
+
+###################################################################################################
 # @displaySchema
+# function displaySchema()
+#
+# Parameters:
+#     schema_id: The id of the schema to display.
+#
+# Returns: None
+#
+#     Function to display all of the JSON schemas for each of the actions that can be taken when
+# using JSON as input for the program. The schema will be displayed in the format that is validated
+# by the http://json-schema.org/draft-07 standard.
 def displaySchema(schema_id):
     global scriptDir
 
@@ -175,6 +323,7 @@ def displaySchema(schema_id):
 
 
 # END displaySchema() DEF
+###################################################################################################
 
 
 # -------------------
@@ -187,8 +336,22 @@ def displaySchema(schema_id):
 # /_/   \_\___|\__|_|\___/|_| |_| |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
 #
 ###################################################################################################
+#     This section of functions are functions that actually perform the actions that are looking to
+# be done such as adding a password, removing a password, updating passwords, etc..
+###################################################################################################
 
-# @addPssword()
+
+###################################################################################################
+# @addPassword()
+# function addPassword()
+#
+# Paramters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+# Returns: None
+#
+#     A function to collect information to add a new password into the passwords file.
 def addPassword(data):
     fileName = data["fileName"]
     passwords = data["passwords"]
@@ -197,6 +360,9 @@ def addPassword(data):
 
     info = gatherPasswordInfo(data, cipher_suite)
 
+    """
+    If the value returned from gathering password data was None/Null then just return None.
+    """
     if not info:
         return
     # END IF
@@ -204,6 +370,10 @@ def addPassword(data):
     pwUserName, pwVal, pwLabel, pwURL, pwDesc, pwDetails = info
     pwDetails = pwDetails.split(",")
 
+    """
+    Encrypt each item in the pwDetails list. Each item in the list is just basically a sentance
+    and each word in the sentance can be encrypted with the prefix "enc:|:".
+    """
     encryptDetails(pwDetails, cipher_suite)
 
     if pwURL == "":
@@ -230,9 +400,21 @@ def addPassword(data):
 
 
 # END addPassword() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @getPassword()
+# function getPassword()
+#
+# Paramters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+# Returns: None
+#
+#     This password will fetch the password being looked for, unencrypt it and then display it to
+# the user.
 def getPassword(data):
     passwords = data["passwords"]
 
@@ -258,16 +440,27 @@ def getPassword(data):
                     )
                 )
             except ValueError:
-                printMsg('\nWrong key for label "{}"'.format(pwLabel))
+                printMsg('\nWrong key for label "{}"'.format(pwLabel), "red")
             # END TRY
         # END IF
     # END IF
 
 
 # END getPassword() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @changePassword()
+# function changePassword()
+#
+# Paramters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+# Returns: None
+#
+#     A function to change the password being specified by a label/name.
 def changePassword(data):
     global scriptDir
 
@@ -289,6 +482,10 @@ def changePassword(data):
     # END IF
 
     if pwLabel in passwords.keys():
+        """
+        This is checked second after the check for the label being in the list of stored labels
+        because if the label does not exist then there is no need to ask for a new password.
+        """
         if newPw == "":
             newPw = raw_input("Etner new password: ")
         # END IF
@@ -312,9 +509,21 @@ def changePassword(data):
 
 
 # END changePassword() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @printLabelDetails()
+# function printLabelDetails()
+#
+# Paramters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+# Returns: None
+#
+#     This function will print out all of the details of the password object with the requested label.
+# It will display them in JSON notation and the actual password will be unencrypted.
 def printLabelDetails(data):
     passwords = data["passwords"]
 
@@ -332,24 +541,53 @@ def printLabelDetails(data):
 
 
 # END printLableDetails() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @printLabels()
+# function printLabels()
+#
+# Paramters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+# Returns: None
+#
+#     This function will just print a list of all labels/names that are currently stored.
 def printLabels(data):
     lablesString = "\nLabels curently stored:"
     count = 1
 
-    for label in data["passwords"].keys():
-        lablesString = lablesString + "\n {}) {}".format(count, label)
-        count = count + 1
-    # END FOR
+    if len(data["passwords"].keys()) > 1:
+        for label in data["passwords"].keys():
+            lablesString = lablesString + "\n {}) {}".format(count, label)
 
-    printMsg(lablesString)
+            printMsg(lablesString)
+
+            count = count + 1
+        # END FOR
+    else:
+        printMsg("\nNo labels are stored to print.", "red")
+    # END IF
 
 # END printLabels() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @dumpDecryptedPasswords
+# function dumpDecryptedPasswords()
+#
+# Paramters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+# Returns: None
+#
+#     This function will write the value of the password file to another location but all of the
+# passwords will be in clear text. This function also has the capability of displaying this
+# information to the screen.
 def dumpDecryptedPasswords(data):
     if data["source"] == "terminal":
         fileDir = raw_input(
@@ -385,9 +623,20 @@ def dumpDecryptedPasswords(data):
 
 
 # END dumpDecryptedPasswords() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @generateKey()
+# function generateKey()
+#
+# Parameters:
+#     data: Not actually used in this function. This function exists so that it can be stored in a
+#           dictionary and invoked from it.
+#
+# Returns: None
+#
+#     Function to generate an encryption key.
 def generateKey(data):
     global scriptDir
 
@@ -403,20 +652,23 @@ def generateKey(data):
 
 
 # END generateKey() DEF
-
-
-# -----------------------
-# Validation Functions  |
-###################################################################################################
-# __     __    _ _     _       _   _               _____                 _   _
-# \ \   / __ _| (_) __| | __ _| |_(_) ___  _ __   |  ____   _ _ __   ___| |_(_) ___  _ __  ___
-#  \ \ / / _` | | |/ _` |/ _` | __| |/ _ \| '_ \  | |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
-#   \ V | (_| | | | (_| | (_| | |_| | (_) | | | | |  _|| |_| | | | | (__| |_| | (_) | | | \__ \
-#    \_/ \__,_|_|_|\__,_|\__,_|\__|_|\___/|_| |_| |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
-#
 ###################################################################################################
 
+
+###################################################################################################
 # @determineSource()
+# function determineSource()
+#
+# Paramters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+# Returns: None
+#
+#     This function will determine the source of the input for the program. If there is any
+# argument passed to the program then it determines if it is just an option for information request
+# or if it is JSON data that needs to be processed. If there is no argument passed in then the
+# it will set the source of the input to be from the terminal.
 def determineSource(data):
     global printSource
 
@@ -460,12 +712,41 @@ def determineSource(data):
 
 
 # END determineSource() DEF
+###################################################################################################
 
 
+# -----------------------
+# Validation Functions  |
+###################################################################################################
+# __     __    _ _     _       _   _               _____                 _   _
+# \ \   / __ _| (_) __| | __ _| |_(_) ___  _ __   |  ____   _ _ __   ___| |_(_) ___  _ __  ___
+#  \ \ / / _` | | |/ _` |/ _` | __| |/ _ \| '_ \  | |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
+#   \ V | (_| | | | (_| | (_| | |_| | (_) | | | | |  _|| |_| | | | | (__| |_| | (_) | | | \__ \
+#    \_/ \__,_|_|_|\__,_|\__,_|\__|_|\___/|_| |_| |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
+#
+###################################################################################################
+#     This section of functions are all functions that will be used to validate some sort of data
+# or action.
+###################################################################################################
+
+
+###################################################################################################
 # @checkFiles()
+# function checkFiles()
+#
+# Parameters: None
+#
+# Returns: The data dictionary that has all of the passwords stored in the password file and the
+#          fully qualified file name of the passwords file.
+#
+#     This function will read first check to see if there is a passwords file already stored in the
+# directory of the program. If it does not exist then it creates the file. After it reads in the
+# file it converts it into a dictionary and stores it as the "passwords" object in the data
+# dictionary.
 def checkFiles():
     global scriptDir
 
+    # If passwords file does not exist, create it.
     if not os.path.exists(scriptDir + "/passwords.json"):
         with open(scriptDir + "/passwords.json", "w+") as passwordsData:
             passwordsData.write("")
@@ -486,13 +767,23 @@ def checkFiles():
 
 
 # END checkFiles() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @validateData()
+# function validateData()
+#
+# Parameters:
+#     source_data: This will be the incoming json data that is stored in the "data" dictionary that
+#                  is initialized at the begining of the program. Refer to the Control Functions
+#                  section of comments for explanation of how the data dictionary functions.
+#
+# Returns: None
 def validateData(source_data):
     """
     The "action" key has to be checked before any actual JSON schema validation because its value
-    will be used to determine which schema file to load to compare the incoming JSON dta to.
+    will be used to determine which schema file to load to compare the incoming JSON data to.
     """
     if "action" not in source_data.keys():
         printMsg("Key \"action\" missing from input json data. Invalid JSON data.")
@@ -537,8 +828,23 @@ def validateData(source_data):
 
 
 # END validateKeys() DEF
+###################################################################################################
 
+
+###################################################################################################
 # @isValidAction()
+# function isValidAction()
+#
+# Parameters:
+#     action: An integer representing the action to be taken.
+#
+#     source: The input source of the action. Default is "terminal".
+#
+# Returns: True if action is valid, False otherwise.
+#
+#     A validation function to dertmine of the requested action is in a valid range of actions. If
+# the "source" argument is json then the actions range starts at 1 because action id of "0" is for
+# exiting the program when running in the terminal.
 def isValidAction(action, source="terminal"):
     rangeStart = 0
 
@@ -553,6 +859,7 @@ def isValidAction(action, source="terminal"):
 
 
 # END isValidAction
+###################################################################################################
 
 
 # -------------------
@@ -565,9 +872,22 @@ def isValidAction(action, source="terminal"):
 # |_| |_|\___|_| .__/ \___|_|    |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
 #              |_|
 ###################################################################################################
+#     This section of functions are all functions that will be used by other functions to offload
+# some of the functionality to improve readability.
+###################################################################################################
 
+###################################################################################################
 # @validateJsonFile()
 # Helper of function determineSource()
+# function validateJsonFile()
+#
+# Parameters:
+#     fileName: The name of the file to validate.
+#
+# Returns: The data from the json file that will be treated as "source_data" of the program.
+#
+#     This function will read the json file and will simply just make sure that the file exists and
+# that a valid json object could be decoded from it.
 def validateJsonFile(fileName):
     returnData = {}
 
@@ -587,10 +907,23 @@ def validateJsonFile(fileName):
 
 
 # END validateJsonFile() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @isValidSchemaId()
 # Helper of function determineSource()
+# function isValidSchemaId()
+#
+# Parameters:
+#     schema_id: The id of the schema to check against.
+#
+# Returns: True if schema_id is valid, False otherwise.
+#
+#     This function checks the schema_id passed to it and sees if it would actually be a valid
+# action as the schema_id will correalte with the action that the id would be tied to. So if
+# the schema_id is the same as the integer value for perfroming the addPassword action then
+# the schema file for addPassword will be displayed.
 def isValidSchemaId(schema_id):
     action = schema_id
 
@@ -611,10 +944,28 @@ def isValidSchemaId(schema_id):
 
 
 #END isValidSchemaId() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @encryptDetails()
 # Helper of function addPassword()
+# function encryptDetails()
+#
+# Parameters:
+#     details: The list of details that are to be encrypted if any of the list items are marked to
+#              have any part of them encrypted.
+#
+#     cipher_suite: The cipher object used for encryption.
+#
+# Returns: Does not return anything. Since the list is passed by reference it can be modified in
+#          place and the changes will be reflected in the place it was originally called in.
+#
+#     This function will be used in the addPassword() function. It will take the list of details
+# obtained and then encrypt any parts of that contain the prefix "enc:|:". An example is below:
+#
+#     Before encryption: detials = ["Details string 1 with password enc:|:welcome123"]
+#     After encryption: details = ["Details string 1 with password encrypted:gAAAAABcGpCOiUZnH"]
 def encryptDetails(details, cipher_suite):
     detIndex = 0
     splitWord = ""
@@ -638,11 +989,28 @@ def encryptDetails(details, cipher_suite):
 
 
 # END encryptDetails() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @decryptDetails()
 # Helper of function dumpDecryptedPasswords()
-def decryptDetails(details, cipher_suite):
+# function decryptDetails()
+#
+# Parameters:
+#     details: The list of details that are to be decrypted if any of the list items are marked to
+#              have any part of them decrypted.
+#
+#     cipher_suite: The cipher object used for decryption.
+#
+# Returns: List of all details decrypted that were marked for decryption.
+#
+#     This function will be used in the dumpDecryptedPasswords() function. It will take the list of details
+#     obtained and then decrypt any parts of that contain the prefix "encrypted:". An example is below:
+#
+#     Before decryption: details = ["Details string 1 with password encrypted:gAAAAABcGpCOiUZnH"]
+#     After decryption: detials = ["Details string 1 with password enc:|:welcome123"]
+def (details, cipher_suite):
     decryptedDetails = []
 
     for detail in details:
@@ -662,8 +1030,10 @@ def decryptDetails(details, cipher_suite):
 
 
 # END decryptDetails() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @gatherPasswordInfo()
 # Helper of function addPassword()
 def gatherPasswordInfo(data, cipher_suite):
@@ -678,7 +1048,7 @@ def gatherPasswordInfo(data, cipher_suite):
     if data["source"] == "json":
         pwInfo = getDataFromJSON(data, cipher_suite)
     else:
-        pwInfo = getDataFromCLI(data, cipher_suite)
+        pwInfo = getDataFromTerminal(data, cipher_suite)
     # END IF
 
     return pwInfo
@@ -718,9 +1088,9 @@ def getDataFromJSON(data, cipher_suite):
 # END getDataFromJSON() DEF
 
 
-# @getDataFromCLI()
+# @getDataFromTerminal()
 # Helper of function gatherPasswordInfo()
-def getDataFromCLI(data, cipher_suite):
+def getDataFromTerminal(data, cipher_suite):
     mirrorOtherLabel = raw_input("\nMirror username and password of other label? (yes/no): ")
 
     if mirrorOtherLabel == "yes":
@@ -752,7 +1122,7 @@ def getDataFromCLI(data, cipher_suite):
     return (pwUserName, pwVal, pwLabel, pwURL, pwDesc, pwDetails)
 
 
-# END getDataFromCLI() DEF
+# END getDataFromTerminal() DEF
 
 
 # @processSchemaError()
