@@ -86,7 +86,7 @@ def main():
 # }
 #
 # Below are descriptions of all of the properties of the data dictionary:
-#     fileName: The fully qualified file name of the passwords file will be stored.
+#     fileName: The fully qualified file name of where the passwords file will be stored.
 #     passwords: The dictionary storing all of the information that was stored in the password
 #                file.
 #     source: The source of where the input to the program will be coming from. This can either
@@ -147,6 +147,8 @@ def terminal(data, actionsDict):
         "",
     ]
 
+    # Ok for infinite loop here. There are plenty of ways to kill the program that are handled like
+    # cntl-c or choosing the menu item "0".
     while True:
         try:
             for item in menu:
@@ -192,6 +194,9 @@ def processJSONRequest(data, actionsDict):
     action = source_data["action"]
 
     if isValidAction(action, "json"):
+        # The key for encryption/decryption is going to be passed in via JSON but the key has to be
+        # in the data dictionary so pop it from the source_data dictionary and place it in the
+        # data dictionary.
         if "key" in source_data.keys():
             data["key"] = bytes(data["source_data"].pop("key"))
         # END IF
@@ -370,6 +375,19 @@ def addPassword(data):
     pwUserName, pwVal, pwLabel, pwURL, pwDesc, pwDetails = info
     pwDetails = pwDetails.split(",")
 
+    if len(pwUserName) == 0:
+        printMsg("Username entered is blank.", "red")
+
+        return
+    # END IF
+
+    if len(pwVal) == 0:
+        printMsg("Username entered is blank.", "red")
+
+        return
+    # END IF
+
+
     """
     Encrypt each item in the pwDetails list. Each item in the list is just basically a sentance
     and each word in the sentance can be encrypted with the prefix "enc:|:".
@@ -487,22 +505,30 @@ def changePassword(data):
         because if the label does not exist then there is no need to ask for a new password.
         """
         if newPw == "":
-            newPw = raw_input("Etner new password: ")
+            newPw = getpass("Enter new password: ")
         # END IF
 
-        try:
-            key = data["key"]
-            cipher_suite = Fernet(key)
-            passwords[pwLabel]["value"] = cipher_suite.encrypt(bytes(newPw))
+        if not len(newPw) == 0:
+            try:
+                key = data["key"]
+                cipher_suite = Fernet(key)
 
-            with open(pwFile, "w") as pwFileObj:
-                pwFileObj.write(json.dumps(passwords))
-            # END WITH
+                # This is done to make sure that the user used the same key to encrypt the new password
+                # that they used for the old password.
+                cipher_suite.decrypt(bytes(passwords[pwLabel]["value"]))
+                passwords[pwLabel]["value"] = cipher_suite.encrypt(bytes(newPw))
 
-            printMsg("\nUpdated password successfully", "green")
-        except ValueError:
-            printMsg('\nWrong key for label "{}"'.format(pwLabel), "red")
-        # END TRY
+                with open(pwFile, "w") as pwFileObj:
+                    pwFileObj.write(json.dumps(passwords))
+                # END WITH
+
+                printMsg("\nUpdated password successfully", "green")
+            except ValueError:
+                printMsg('\nWrong key for label "{}"'.format(pwLabel), "red")
+            # END TRY
+        else:
+            printMsg("\nNew password entered is empty.", "red")
+        # END IF
     else:
         printMsg('\nLabel "{}" does not exist.'.format(pwLabel), "red")
     # END IF
@@ -563,10 +589,10 @@ def printLabels(data):
         for label in data["passwords"].keys():
             lablesString = lablesString + "\n {}) {}".format(count, label)
 
-            printMsg(lablesString)
-
             count = count + 1
         # END FOR
+
+        printMsg(lablesString, "green")
     else:
         printMsg("\nNo labels are stored to print.", "red")
     # END IF
@@ -1010,7 +1036,7 @@ def encryptDetails(details, cipher_suite):
 #
 #     Before decryption: details = ["Details string 1 with password encrypted:gAAAAABcGpCOiUZnH"]
 #     After decryption: detials = ["Details string 1 with password enc:|:welcome123"]
-def (details, cipher_suite):
+def decryptDetails(details, cipher_suite):
     decryptedDetails = []
 
     for detail in details:
@@ -1036,6 +1062,20 @@ def (details, cipher_suite):
 ###################################################################################################
 # @gatherPasswordInfo()
 # Helper of function addPassword()
+# function gatherPasswordInfo()
+#
+# Parameters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+#     cipher_suite: The cipher object used for encryption.
+#
+# Returns: All of the iformation that will be stored that is relvent to the password like username,
+#          actual password value, the label that will identify the password, details, url and a
+#          description of the password.
+#
+#     This function is used by the addPassword() function to do all of the gathering of the info
+# that will make up a password.
 def gatherPasswordInfo(data, cipher_suite):
     pwUserName = ""
     pwVal = ""
@@ -1043,22 +1083,42 @@ def gatherPasswordInfo(data, cipher_suite):
     pwURL = ""
     pwDesc = ""
     pwDetails = ""
-    pwInfo = ()
+    pwInfo = None
 
-    if data["source"] == "json":
-        pwInfo = getDataFromJSON(data, cipher_suite)
-    else:
-        pwInfo = getDataFromTerminal(data, cipher_suite)
-    # END IF
+    try:
+        if data["source"] == "json":
+            pwInfo = getDataFromJSON(data, cipher_suite)
+        else:
+            pwInfo = getDataFromTerminal(data, cipher_suite)
+        # END IF
+    except ValueError:
+         printMsg('\nCannot mirror label "{}", wrong key provided.'.format(pwLabel), "red")
+    # END TRY
 
     return pwInfo
 
 
 # END gatherPasswordInfo() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @getDataFromJSON()
 # Helper of function gatherPasswordInfo()
+# function getDataFromJSON()
+#
+# Parameters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+#     cipher_suite: The cipher object used for encryption.
+#
+# Returns: All of the iformation that will be stored that is relvent to the password like username,
+#          actual password value, the label that will identify the password, details, url and a
+#          description of the password.
+#
+#     This function will gather all of the information relevant to creating the password that will
+# be coming in from a JSON file or object passed right in via the command line.
 def getDataFromJSON(data, cipher_suite):
     passwords = data["passwords"]
 
@@ -1086,10 +1146,26 @@ def getDataFromJSON(data, cipher_suite):
 
 
 # END getDataFromJSON() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @getDataFromTerminal()
 # Helper of function gatherPasswordInfo()
+# function getDataFromTerminal()
+#
+# Parameters:
+#     data: This will be a dict that has all of the information regarding all of the passwords that
+#           are stored. Refer to Control Functions section header for description of this object.
+#
+#     cipher_suite: The cipher object used for encryption.
+#
+# Returns: All of the iformation that will be stored that is relvent to the password like username,
+#          actual password value, the label that will identify the password, details, url and a
+#          description of the password.
+#
+#     This function will gather all of the information relevant to creating the password that will
+# be entered in by the user via the terminal.
 def getDataFromTerminal(data, cipher_suite):
     mirrorOtherLabel = raw_input("\nMirror username and password of other label? (yes/no): ")
 
@@ -1104,7 +1180,7 @@ def getDataFromTerminal(data, cipher_suite):
             return
     elif mirrorOtherLabel == "no":
         pwUserName = raw_input("Enter user name to be associated with this password: ")
-        pwVal = raw_input("Enter password to be stored: ")
+        pwVal = getpass("Enter password to be stored: ")
     else:
         printMsg("\nInvalid response \"{}\".".format(mirrorOtherLabel), "red")
         return
@@ -1123,10 +1199,33 @@ def getDataFromTerminal(data, cipher_suite):
 
 
 # END getDataFromTerminal() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @processSchemaError()
 # Helper of function validateData()
+# function processSchemaError()
+#
+# Parameters:
+#     error: The error that was thrown due to schema validation error.
+#
+#     source_data: The source data which schema validation failed against.
+#
+# Returns: None
+#
+#     This function determines what is to be printed out at the time schema validation fails in the
+# function validateData(). The error message will display what was wrong with the incoming json
+# data and will also display the JSON path as to which key was in issue. The path always starts
+# root to indicate that it was a top level property/key that was bad. Below is an example of
+# making an addPassword request from JSON and the JSON data missing the "label" key:
+#     JSON Path of key: root.label
+#     {
+#         "action": 2,
+#         "key": "-S8qiCMaohb8RGjGS7uJcnUfw=",
+#         "label": "This key is missing" <----
+#
+#     }
 def processSchemaError(error, source_data):
     errInfo = error._contents()
     errValidator = errInfo["validator"]
@@ -1152,10 +1251,32 @@ def processSchemaError(error, source_data):
 
 
 # END processSchemaError() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @getRequiredKeyMissingErrMessage()
 # Helper of function processSchemaError()
+# function getRequiredKeyMissingErrMessage()
+#
+# Parameters:
+#     errMsg: The actual error message that was generated for the error.
+#
+#     errPath: The json path of the error in the json object.
+#
+#     currObj: The object that the error happened on. This will be used to iterate down to the item
+#              in the dictionary that is in error.
+#
+# Returns: The message to be printed out in the case that a missing required key was missing from
+#          the JSON object that was passed into the program to act upon.
+#
+#    For this function the key that was missing will be in the errMsg argument. The key is
+# extracted from there and then appended to the path. The path will be the full JSON path of where
+# the issue is minus the key. So if the issue is with the key "action" which is a top level key
+# then the errPath will be root but will then have the key "action" appended to it and the path
+# will then become root.action. If the missing key is "pwVal" for the action addPassword() then the
+# errPath will be root.passwordInfo and then pwVal is appended to it making it
+# root.passwordInfo.pwVal.
 def getRequiredKeyMissingErrMessage(errMsg, errPath, currObj):
     issueKey = errMsg.split(" ")[0].replace("u'", "").replace("'", "")
     errPath.append(issueKey)
@@ -1174,18 +1295,46 @@ def getRequiredKeyMissingErrMessage(errMsg, errPath, currObj):
     return message
 
 # END getRequiredKeyMissingErrMessage() DEF
+###################################################################################################
 
 
+###################################################################################################
 # @getgetWrongTypeErrMessage()
 # Helper of function processSchemaError()
+# function getWrongTypeErrMessage()
+#
+# Parameters:
+#     errInfo: Information about the error like the expected type of the value in error.
+#
+#     errPath: The json path of the error in the json object.
+#
+#     currObj: The object that the error happened on. This will be used to iterate down to the item
+#              in the dictionary that is in error.
+#
+# Returns: The message to be printed out in the case that a key in the incoming JSON data is of the
+#          wrong/unexpected type.
+#
+#    For this function the error message will present to the user that the incoming JSON data that
+# they provided for a particular value for a key was of the wrong type (i.e. they made a key that
+# was expected to be an int a string). The path to the bad key comes in as the full correct JSON
+# path so there is no need to modify it here.
 def getWrongTypeErrMessage(errInfo, errPath, currObj):
+
+    """
+    This dictionaory is used for quickly looking up the type data the bad key was from the incoming
+    JSON data. Since the type fuinction returns an object that has the __hash__() function then it
+    valid to use the function's return value as the indecies of the dictionary. Since the type
+    function returns the same object for all of the values passed to it of the same type, it works
+    for using it's return value as an index (i.e. using type() on any integer will always return an
+    object that has the same hashcode).
+    """
     dataTypes = {
-        type(""): "string",
-        type(1): "integer",
+        type(""):   "string",
+        type(1):    "integer",
         type(True): "boolean",
         type(1.23): "number",
-        type([]): "list",
-        type({}): "object"
+        type([]):   "list",
+        type({}):   "object"
     }
 
     for prop in list(errPath)[1:-1]:
@@ -1194,6 +1343,8 @@ def getWrongTypeErrMessage(errInfo, errPath, currObj):
         # END IF
     # END
 
+    # errPath is of type deque so it has to be converted to list. The bad key is they furthest
+    # property in the path.
     issueKey = list(errPath)[-1]
     expectedType = errInfo["validator_value"].replace("u'", "").replace("'", "")
     recievedType = dataTypes[type(currObj[issueKey])]
@@ -1211,7 +1362,7 @@ def getWrongTypeErrMessage(errInfo, errPath, currObj):
 
 
 # END getWrongTypeErrMessage() DEF
-
+###################################################################################################
 
 # --------------------
 # Utility Functions  |
@@ -1223,19 +1374,47 @@ def getWrongTypeErrMessage(errInfo, errPath, currObj):
 #  \___/ \__|_|_|_|\__|\__, | |_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
 #                      |___/
 ###################################################################################################
+#     This section of functions will focus on functions that are utilitarian in nature like one
+# to the print to screen in normal format or in color or one for file io.
+###################################################################################################
 
+
+###################################################################################################
 # @printMsg()
+# function printMsg()
+#
+# Parameters:
+#     msgStr: The string that is to be printed as the message.
+#
+#     colorStr: A string provided to display the message in a certain color. The list of available
+#               colors is ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+#               The list of avaliable colors is defined in teh termcolor module. If more become
+#               available they will be listed at https://pypi.org/project/termcolor/.
+#
+# Returns: None
+#
+#     A simple function to "override" the builtin print function (it actually just calls the print
+# function with the arguments passed in). This function takes in a color argument to print in a
+# certain desired color. The list of available colors is:
+#
+#    ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+#
+# The list of avaliable colors is defined in teh termcolor module. If more become available they
+# will be listed at https://pypi.org/project/termcolor/.
+#
 def printMsg(msgStr, colorStr="None"):
     global printSource
 
     printObj = None
+    valid_colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+
     if  printSource == "json":
         response = {"response": {}}
         response["response"]["color"] = colorStr
         response["response"]["message"] = msgStr
 
         printObj = json.dumps(response)
-    elif colorStr == "None":
+    elif colorStr not in valid_colors:
         printObj = msgStr
     else:
         printObj = colored(msgStr, colorStr)
@@ -1245,6 +1424,7 @@ def printMsg(msgStr, colorStr="None"):
 
 
 # END printMsg() DEF
+###################################################################################################
 
 
 if __name__ == "__main__":
