@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 from cryptography.fernet import Fernet
 import json
@@ -8,9 +8,12 @@ import os
 import sys
 from termcolor import colored
 from getpass import getpass
+import pyperclip
 
-printSource = ""
+printSource = "terminal"
 scriptDir = os.path.dirname(os.path.realpath(__file__))
+printPWToClipboard = False
+printColoredText = False
 
 ###################################################################################################
 # @main()
@@ -129,10 +132,45 @@ def main():
 #
 # Returns: None
 #
-#     This funtion will be used to direct the flow of control for when the source of input is the
+#     This function will be used to direct the flow of control for when the source of input is the
 # terminal. A menu will printed out to the screen for the user to show what actions they can take.
 def terminal(data, actionsDict):
+    global printPWToClipboard
+    global printColoredText
+
     data["key"] = getpass("Please enter key for passwords: ")
+    printPWToClipboard = input("Print unencrypted passwords to clipboard? (y/n): ").upper()
+
+    while printPWToClipboard != "Y" and printPWToClipboard != "N":
+        printMsg("Invalid response, please enter \"y\" or \"n\" only.")
+        printPWToClipboard = input("Print unencrypted passwords to clipboard? (y/n): ").upper()
+    # END WHILE
+
+    printColoredText = input("Print colored text? (y/n): ").upper()
+
+    while printColoredText != "Y" and printColoredText != "N":
+        printMsg("Invalid response, please enter \"y\" or \"n\" only.")
+        printColoredText = input("Print colored text? (y/n): ").upper()
+    # END WHILE
+
+
+    if printPWToClipboard == "Y":
+        try:
+            pyperclip.copy("Testting clipboard copy")
+            printPWToClipboard = True
+        except pyperclip.PyperclipException:
+            printMsg("Cannot find a clipboard object on this machine. Will write passwords to terminal instead.", "red")
+            printPWToClipboard = False
+        # END TRY
+    else:
+        printPWToClipboard = False
+    # END IF
+
+    if printColoredText == "Y":
+        printColoredText = True
+    else:
+        printColoredText = False
+    # END IF
 
     menu = [
         "",
@@ -155,7 +193,7 @@ def terminal(data, actionsDict):
                 printMsg(item)
             # END FOR
 
-            choice = int(raw_input("Choice: "))
+            choice = int(input("Choice: "))
 
             if isValidAction(choice):
                  actionsDict[choice](data)
@@ -198,7 +236,7 @@ def processJSONRequest(data, actionsDict):
         # in the data dictionary so pop it from the source_data dictionary and place it in the
         # data dictionary.
         if "key" in source_data.keys():
-            data["key"] = bytes(data["source_data"].pop("key"))
+            data["key"] = bytes(data["source_data"].pop("key").encode())
         # END IF
 
         actionsDict[action](data)
@@ -310,19 +348,29 @@ def information():
 def displaySchema(schema_id):
     global scriptDir
 
-    schema_files = {
-        1: "/schemas/addpassword.json",
-        2: "/schemas/getpassword.json",
-        3: "/schemas/getlabelinfo.json",
-        4: "/schemas/getlabels.json",
-        5: "/schemas/dump.json",
-        6: "/schemas/changepassword.json",
-        7: "/schemas/genkey.json"
-    }
+    try:
+        schema_id = int(schema_id)
 
-    with open(scriptDir + schema_files[schema_id], "r") as schema:
-        printMsg(schema.read())
-    # END WITH
+        if schema_id not in range(1,8):
+            printMsg("Invalid schema id value \"{}\" provided for display.", "red")
+        else:
+            schema_files = {
+                1: "/schemas/addpassword.json",
+                2: "/schemas/getpassword.json",
+                3: "/schemas/getlabelinfo.json",
+                4: "/schemas/getlabels.json",
+                5: "/schemas/dump.json",
+                6: "/schemas/changepassword.json",
+                7: "/schemas/genkey.json"
+            }
+
+            with open(scriptDir + schema_files[schema_id], "r") as schema:
+                printMsg(schema.read())
+            # END WITH
+        #END IF
+    except ValueError:
+        printMsg("Invalid schema id value \"{}\" provided for display.", "red")
+    # END TRY
 
     sys.exit(0)
 
@@ -407,7 +455,7 @@ def addPassword(data):
         with open(fileName, "w") as passwordsData:
             passwords[pwLabel] = {}
             passwords[pwLabel]["username"] = pwUserName
-            passwords[pwLabel]["value"] = cipher_suite.encrypt(bytes(pwVal))
+            passwords[pwLabel]["value"] = cipher_suite.encrypt(bytes(pwVal.encode())).decode()
             passwords[pwLabel]["url"] = pwURL
             passwords[pwLabel]["description"] = pwDesc
             passwords[pwLabel]["details"] = pwDetails
@@ -434,13 +482,15 @@ def addPassword(data):
 #     This password will fetch the password being looked for, unencrypt it and then display it to
 # the user.
 def getPassword(data):
+    global printPWToClipboard
+
     passwords = data["passwords"]
 
     if len(passwords.keys()) == 0:
         printMsg("\nThere are no passwords stored to get.", "red")
     else:
         if data["source"] == "terminal":
-            pwLabel = raw_input("\nEnter label of password to look for: ").lower()
+            pwLabel = input("\nEnter label of password to look for: ").lower()
         else:
             pwLabel = data["source_data"]["label"]
         # END IF
@@ -452,11 +502,18 @@ def getPassword(data):
                 key = data["key"]
                 cipher_suite = Fernet(key)
                 encryptedPw = passwords[pwLabel]["value"]
-                printMsg(
-                    '\nPassword for label "{}": {}'.format(
-                        pwLabel, cipher_suite.decrypt(bytes(encryptedPw))
+
+                if printPWToClipboard:
+                    printMsg("\nPassword copied to clipboard", "green")
+                    pyperclip.copy(cipher_suite.decrypt(bytes(encryptedPw.encode())).decode())
+                else:
+                    printMsg(
+                        '\nPassword for label "{}": {}'.format(
+                            pwLabel, cipher_suite.decrypt(bytes(encryptedPw.encode())).decode()
+                        ),
+                        "green"
                     )
-                )
+                # END IF
             except ValueError:
                 printMsg('\nWrong key for label "{}"'.format(pwLabel), "red")
             # END TRY
@@ -496,7 +553,7 @@ def changePassword(data):
         pwLabel = data["source_data"]["label"]
         newPw = data["source_data"]["value"]
     else:
-        pwLabel = raw_input("\nEnter the label for password to change: ")
+        pwLabel = input("\nEnter the label for password to change: ")
     # END IF
 
     if pwLabel in passwords.keys():
@@ -515,8 +572,8 @@ def changePassword(data):
 
                 # This is done to make sure that the user used the same key to encrypt the new password
                 # that they used for the old password.
-                cipher_suite.decrypt(bytes(passwords[pwLabel]["value"]))
-                passwords[pwLabel]["value"] = cipher_suite.encrypt(bytes(newPw))
+                cipher_suite.decrypt(bytes(passwords[pwLabel]["value"].encode()))
+                passwords[pwLabel]["value"] = cipher_suite.encrypt(bytes(newPw.encode())).decode()
 
                 with open(pwFile, "w") as pwFileObj:
                     pwFileObj.write(json.dumps(passwords))
@@ -554,7 +611,7 @@ def printLabelDetails(data):
     passwords = data["passwords"]
 
     if data["source"] == "terminal":
-        pwLabel = raw_input("\nEnter label to print information for: ").lower()
+        pwLabel = input("\nEnter label to print information for: ").lower()
     else:
         pwLabel = data["source_data"]["label"]
     # END IF
@@ -585,7 +642,7 @@ def printLabels(data):
     lablesString = "\nLabels curently stored:"
     count = 1
 
-    if len(data["passwords"].keys()) > 1:
+    if len(data["passwords"].keys()) > 0:
         for label in data["passwords"].keys():
             lablesString = lablesString + "\n {}) {}".format(count, label)
 
@@ -616,7 +673,7 @@ def printLabels(data):
 # information to the screen.
 def dumpDecryptedPasswords(data):
     if data["source"] == "terminal":
-        fileDir = raw_input(
+        fileDir = input(
             "\nEnter directory where to dump file in (value \"stdout\" outputs to screen): "
         )
     else:
@@ -630,10 +687,10 @@ def dumpDecryptedPasswords(data):
     for item in decryptedPasswords.values():
         try:
             encryptedPw = item["value"]
-            item["value"] = cipher_suite.decrypt(bytes(encryptedPw))
+            item["value"] = cipher_suite.decrypt(bytes(encryptedPw.encode())).decode()
             item["details"] = decryptDetails(item["details"], cipher_suite)
         except ValueError:
-            printMsg("\nKey provided is not the correct key to decrypt passwords.")
+            printMsg("\nKey provided is not the correct key to decrypt passwords. Restart program and make sure you have the correct key.", "red")
         # END TRY
     # END FOR
 
@@ -674,7 +731,7 @@ def generateKey(data):
         # END WITH
     # END IF
 
-    printMsg(promptString.format(Fernet.generate_key()))
+    printMsg(promptString.format(Fernet.generate_key().decode()))
 
 
 # END generateKey() DEF
@@ -699,8 +756,6 @@ def determineSource(data):
     global printSource
 
     if len(sys.argv) > 1:
-        printSource = "json"
-
         if sys.argv[1] == "-f":
             data["source_data"] = validateJsonFile(sys.argv[2])
         elif sys.argv[1] == "-j":
@@ -716,7 +771,7 @@ def determineSource(data):
             usage()
         elif sys.argv[1] == "-s":
             if isValidSchemaId(sys.argv[2]):
-                displaySchema(sys.argv[2])
+                displaySchema(int(sys.argv[2]))
             else:
                 sys.exit(1)
             # END IF
@@ -726,6 +781,7 @@ def determineSource(data):
         # END IF
 
         # If execution made it here then the source has to be from JSON data.
+        printSource = "json"
         data["source"] = "json"
         function = processJSONRequest
     else:
@@ -1002,7 +1058,7 @@ def encryptDetails(details, cipher_suite):
             if not word.find("enc:|:") == -1:
                 splitWord = word.split("enc:|:")
                 currentWord = currentWord + " encrypted:" + splitWord[0]
-                currentWord = currentWord + cipher_suite.encrypt(splitWord[1])
+                currentWord = currentWord + cipher_suite.encrypt(bytes(splitWord[1].encode())).decode()
             else:
                 currentWord = currentWord + " " + word
             # END IF
@@ -1042,7 +1098,7 @@ def decryptDetails(details, cipher_suite):
     for detail in details:
         if not detail.find("encrypted:") == -1:
             splitDetail = detail.split("encrypted:")
-            decryptedDetail = cipher_suite.decrypt(bytes(splitDetail[1]))
+            decryptedDetail = cipher_suite.decrypt(bytes(splitDetail[1].encode())).decode()
             decryptedDetail = "enc:|:" + decryptedDetail
             decryptedDetails.append(
                 splitDetail[0].rstrip() + " " + decryptedDetail
@@ -1167,10 +1223,10 @@ def getDataFromJSON(data, cipher_suite):
 #     This function will gather all of the information relevant to creating the password that will
 # be entered in by the user via the terminal.
 def getDataFromTerminal(data, cipher_suite):
-    mirrorOtherLabel = raw_input("\nMirror username and password of other label? (yes/no): ")
+    mirrorOtherLabel = input("\nMirror username and password of other label? (yes/no): ")
 
     if mirrorOtherLabel == "yes":
-        lableToMirror = raw_input("What label do you want to mirror?: ")
+        lableToMirror = input("What label do you want to mirror?: ")
 
         if lableToMirror in passwords:
             pwUserName = passwords[lableToMirror]["username"]
@@ -1179,19 +1235,19 @@ def getDataFromTerminal(data, cipher_suite):
             printMsg("\nLabel \"{}\" not found.".format(lableToMirror))
             return
     elif mirrorOtherLabel == "no":
-        pwUserName = raw_input("Enter user name to be associated with this password: ")
+        pwUserName = input("Enter user name to be associated with this password: ")
         pwVal = getpass("Enter password to be stored: ")
     else:
         printMsg("\nInvalid response \"{}\".".format(mirrorOtherLabel), "red")
         return
     # END IF
 
-    pwLabel = raw_input("Enter label for password: ").lower()
-    pwURL = raw_input(
+    pwLabel = input("Enter label for password: ").lower()
+    pwURL = input(
         "Enter URL for password (if there is one, can leave blank for default value of N/A): "
     )
-    pwDesc = raw_input("Enter a brief description of the password (optional): ")
-    pwDetails = raw_input(
+    pwDesc = input("Enter a brief description of the password (optional): ")
+    pwDetails = input(
         "*Optional* Enter details(i.e. security questions). Separate values via commas: "
     )
 
@@ -1404,6 +1460,7 @@ def getWrongTypeErrMessage(errInfo, errPath, currObj):
 #
 def printMsg(msgStr, colorStr="None"):
     global printSource
+    global printColoredText
 
     printObj = None
     valid_colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
@@ -1414,7 +1471,7 @@ def printMsg(msgStr, colorStr="None"):
         response["response"]["message"] = msgStr
 
         printObj = json.dumps(response)
-    elif colorStr not in valid_colors:
+    elif colorStr not in valid_colors or not printColoredText:
         printObj = msgStr
     else:
         printObj = colored(msgStr, colorStr)
