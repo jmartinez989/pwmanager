@@ -36,7 +36,7 @@ def main():
         5: dumpDecryptedPasswords,
         6: changePassword,
         7: generateKey,
-        0: exit
+        0: lambda a: sys.exit(0)
     }
 
     data = checkFiles()
@@ -138,7 +138,19 @@ def terminal(data, actionsDict):
     global printPWToClipboard
     global printColoredText
 
-    data["key"] = getpass("Please enter key for passwords: ")
+    # Get key from file if it exists.
+    with open("key.txt") as keyFile:
+        for line in keyFile.readlines():
+            if line.startswith("key = "):
+                data["key"] = line.split(" ")[2]
+            # END IF
+        # END FOR
+    # END WITH
+
+    if "key" not in data.keys():
+        data["key"] = getpass("Please enter key for passwords: ")
+    # END IF
+
     printPWToClipboard = input("Print unencrypted passwords to clipboard? (y/n): ").upper()
 
     while printPWToClipboard != "Y" and printPWToClipboard != "N":
@@ -152,7 +164,6 @@ def terminal(data, actionsDict):
         printMsg("Invalid response, please enter \"y\" or \"n\" only.")
         printColoredText = input("Print colored text? (y/n): ").upper()
     # END WHILE
-
 
     if printPWToClipboard == "Y":
         try:
@@ -247,29 +258,6 @@ def processJSONRequest(data, actionsDict):
 
 
 # END processJSONRequest() DEF
-###################################################################################################
-
-
-###################################################################################################
-# @exit()
-# function exit()
-#
-# Parameters:
-#     data: Not actually used in this function. This function exists so that it can be stored in a
-#           dictionary and invoked from it.
-#
-# Returns: None
-#
-#     This function is created so that it can be invoked from a dictionary that it will be stored
-# in. The reason it will be stored in a dictionary is because there will be other functions in the
-# dictionary that will be invoked based on an integer value. The dictionary this will be used on
-# is essentially going to be treated as a switch statement where the integer chosen for an action
-# will be the case and function will be called for that ase.
-def exit(data):
-    sys.exit(0)
-
-
-# END exit() DEF
 ###################################################################################################
 
 
@@ -835,6 +823,13 @@ def checkFiles():
         # END WITH
     # END IF
 
+    # If key file does not exist create it.
+    if not os.path.exists(scriptDir + "/key.txt"):
+        with open(scriptDir + "/key.txt", "w+") as keyFile:
+            keyFile.write("")
+        # END WITH
+    # END IF
+
     with open(scriptDir + "/passwords.json", "r+") as passwordsData:
         try:
             passwords = json.loads(passwordsData.read())
@@ -1223,7 +1218,7 @@ def getDataFromJSON(data, cipher_suite):
 #     This function will gather all of the information relevant to creating the password that will
 # be entered in by the user via the terminal.
 def getDataFromTerminal(data, cipher_suite):
-    mirrorOtherLabel = input("\nMirror username and password of other label? (yes/no): ")
+    mirrorOtherLabel = input("\nMirror username and password of other label? (yes/no): ").lower()
 
     if mirrorOtherLabel == "yes":
         lableToMirror = input("What label do you want to mirror?: ")
@@ -1242,7 +1237,7 @@ def getDataFromTerminal(data, cipher_suite):
         return
     # END IF
 
-    pwLabel = input("Enter label for password: ").lower()
+    pwLabel = input("Enter label for password (case insensitive): ").lower()
     pwURL = input(
         "Enter URL for password (if there is one, can leave blank for default value of N/A): "
     )
